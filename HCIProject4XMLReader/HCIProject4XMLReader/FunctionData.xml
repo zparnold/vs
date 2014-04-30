@@ -1,0 +1,165 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<help>
+    <Category name="General Commands">
+      <Command>
+          <Name>a2p - Awk to Perl translator
+          <Synopsis>a2p [options] filename</Synopsis>
+          <Description>A2p takes an awk script specified on the command line (or from standard input) and produces a comparable perl script on the standard output.</Description>
+          <Options>
+            Options include:
+            -D[number]
+            sets debugging flags.
+            -F[character]
+            tells a2p that this awk script is always invoked with this -F switch.
+            -n[fieldlist]
+            specifies the names of the input fields if input does not have to be split into an array. If you were translating an awk script that processes the password file, you might say:a2p -7 -nlogin.password.uid.gid.gcos.shell.home
+            Any delimiter can be used to separate the field names.
+            -[number]
+            causes a2p to assume that input will always have that many fields.
+            -o
+            tells a2p to use old awk behavior. The only current differences are:
+            *
+            Old awk always has a line loop, even if there are no line actions, whereas new awk does not.
+            *
+            In old awk, sprintf is extremely greedy about its arguments. For example, given the statement print sprintf(some_args), extra_args;
+
+            old awk considers extra_args to be arguments to "sprintf"; new awk considers them arguments to "print".
+          </Options>
+          <Considerations>
+            A2p cannot do as good a job translating as a human would, but it usually does pretty well. There are some areas where you may want to examine the perl script produced and tweak it some. Here are some of them, in no particular order.
+            There is an awk idiom of putting int() around a string expression to force numeric interpretation, even though the argument is always integer anyway. This is generally unneeded in perl, but a2p can't tell if the argument is always going to be integer, so it leaves it in. You may wish to remove it.
+
+            Perl differentiates numeric comparison from string comparison. Awk has one operator for both that decides at run time which comparison to do. A2p does not try to do a complete job of awk emulation at this point. Instead it guesses which one you want. It's almost always right, but it can be spoofed. All such guesses are marked with the comment ""#???"". You should go through and check them. You might want to run at least once with the -w switch to perl, which will warn you if you use == where you should have used eq.
+
+            Perl does not attempt to emulate the behavior of awk in which nonexistent array elements spring into existence simply by being referenced. If somehow you are relying on this mechanism to create null entries for a subsequent for...in, they won't be there in perl.
+
+            If a2p makes a split line that assigns to a list of variables that looks like (Fld1, Fld2, Fld3...) you may want to rerun a2p using the -n option mentioned above. This will let you name the fields throughout the script. If it splits to an array instead, the script is probably referring to the number of fields somewhere.
+
+            The exit statement in awk doesn't necessarily exit; it goes to the END block if there is one. Awk scripts that do contortions within the END block to bypass the block under such circumstances can be simplified by removing the conditional in the END block and just exiting directly from the perl script.
+
+            Perl has two kinds of array, numerically-indexed and associative. Perl associative arrays are called ``hashes''. Awk arrays are usually translated to hashes, but if you happen to know that the index is always going to be numeric you could change the {...} to [...]. Iteration over a hash is done using the keys() function, but iteration over an array is NOT. You might need to modify any loop that iterates over such an array.
+
+            Awk starts by assuming OFMT has the value %.6g. Perl starts by assuming its equivalent, $#, to have the value %.20g. You'll want to set $# explicitly if you use the default value of OFMT.
+
+            Near the top of the line loop will be the split operation that is implicit in the awk script. There are times when you can move this down past some conditionals that test the entire record so that the split is not done as often.
+
+            For aesthetic reasons you may wish to change the array base $[ from 1 back to perl's default of 0, but remember to change all array subscripts AND all substr() and index() operations to match.
+
+            Cute comments that say ``# Here is a workaround because awk is dumb'' are passed through unmodified.
+
+            Awk scripts are often embedded in a shell script that pipes stuff into and out of awk. Often the shell script wrapper can be incorporated into the perl script, since perl can start up pipes into and out of itself, and can do other things that awk can't do by itself.
+
+            Scripts that refer to the special variables RSTART and RLENGTH can often be simplified by referring to the variables $`, $, and $', as long as they are within the scope of the pattern match that sets them.
+
+            The produced perl script may have subroutines defined to deal with awk's semantics regarding getline and print. Since a2p usually picks correctness over efficiency. it is almost always possible to rewrite such code to be more efficient by discarding the semantic sugar.
+
+            For efficiency, you may wish to remove the keyword from any return statement that is the last statement executed in a subroutine. A2p catches the most common case, but doesn't analyze embedded blocks for subtler cases.
+
+            ARGV[0] translates to $ARGV0, but ARGV[n] translates to $ARGV[$n]. A loop that tries to iterate over ARGV[0] won't find it.
+          </Considerations>
+              </Name>
+      </Command>
+    </Category>
+    <Category name ="System Calls">
+      <Command>
+          <Name>accept - accept a connection on a socket 
+              <Synopsis>int accept(int s, struct sockaddr *addr, socklen_t *addrlen);</Synopsis>
+              <Description>
+                  The accept function is used with connection-based socket types (SOCK_STREAM, SOCK_SEQPACKET and SOCK_RDM). It extracts the first connection request on the queue of pending connections, creates a new connected socket with mostly the same properties as s, and allocates a new file descriptor for the socket, which is returned. The newly created socket is no longer in the listening state. The original socket s is unaffected by this call. Note that any per file descriptor flags (everything that can be set with the F_SETFL fcntl, like non blocking or async state) are not inherited across an accept.
+
+The argument s is a socket that has been created with socket(2), bound to a local address with bind(2), and is listening for connections after a listen(2).
+
+The argument addr is a pointer to a sockaddr structure. This structure is filled in with the address of the connecting entity, as known to the communications layer. The exact format of the address passed in the addr parameter is determined by the socket's family (see socket(2) and the respective protocol man pages). The addrlen argument is a value-result parameter: it should initially contain the size of the structure pointed to by addr; on return it will contain the actual length (in bytes) of the address returned. When addr is NULL nothing is filled in.
+
+If no pending connections are present on the queue, and the socket is not marked as non-blocking, accept blocks the caller until a connection is present. If the socket is marked non-blocking and no pending connections are present on the queue, accept returns EAGAIN.
+
+In order to be notified of incoming connections on a socket, you can use select(2) or poll(2). A readable event will be delivered when a new connection is attempted and you may then call accept to get a socket for that connection. Alternatively, you can set the socket to deliver SIGIO when activity occurs on a socket; see socket(7) for details.
+
+For certain protocols which require an explicit confirmation, such as DECNet, accept can be thought of as merely dequeuing the next connection request and not implying confirmation. Confirmation can be implied by a normal read or write on the new file descriptor, and rejection can be implied by closing the new socket. Currently only DECNet has these semantics on Linux
+              </Description>
+              <Considerations>
+                  The third argument of accept was originally declared as an `int *' (and is that under libc4 and libc5 and on many other systems like BSD 4.*, SunOS 4, SGI); a POSIX 1003.1g draft standard wanted to change it into a `size_t *', and that is what it is for SunOS 5. Later POSIX drafts have `socklen_t *', and so do the Single Unix Specification and glibc2. Quoting Linus Torvalds: _Any_ sane library _must_ have "socklen_t" be the same size as int. Anything else breaks any BSD socket layer stuff. POSIX initially _did_ make it a size_t, and I (and hopefully others, but obviously not too many) complained to them very loudly indeed. Making it a size_t is completely broken, exactly because size_t very seldom is the same size as "int" on 64-bit architectures, for example. And it _has_ to be the same size as "int" because that's what the BSD socket interface is. Anyway, the POSIX people eventually got a clue, and created "socklen_t". They shouldn't have touched it in the first place, but once they did they felt it had to have a named type for some unfathomable reason (probably somebody didn't like losing face over having done the original stupid thing, so they silently just renamed their blunder).  
+              </Considerations>
+          </Name>
+      </Command>
+    </Category>
+    <Category name="Subroutines">
+      <Command></Command>
+    </Category>
+    <Category name="Special Files">
+      <Command></Command>
+    </Category>
+    <Category name="File Formats">
+      <Command></Command>
+    </Category>
+    <Category name="Games">
+      <Command></Command>
+    </Category>
+    <Category name="Macros and Conventions">
+      <Command></Command>
+    </Category>
+    <Category name="Maintenance Commands">
+      <Command>
+          <Name>ab - Apache HTTP server benchmarking tool
+              <Synopsis>
+                  ab [ -A auth-username:password ] [ -c concurrency ] [ -C cookie-name=value ] [ -d ] [ -e csv-file ] [ -g gnuplot-file ] [ -h ] [ -H custom-header ] [ -i ] [ -k ] [ -n requests ] [ -p POST-file ] [ -P proxy-auth-username:password ] [ -q ] [ -s ] [ -S ] [ -t timelimit ] [ -T content-type ] [ -v verbosity] [ -V ] [ -w ] [ -x table-attributes ] [ -X proxy[:port] ] [ -y tr-attributes ] [ -z td-attributes ] [http://]hostname[:port]/path 
+              </Synopsis>
+              <Summary>
+                  ab is a tool for benchmarking your Apache Hypertext Transfer Protocol (HTTP) server. It is designed to give you an impression of how your current Apache installation performs. This especially shows you how many requests per second your Apache installation is capable of serving. 
+              </Summary>
+              <Options>
+                  -A auth-username:password
+Supply BASIC Authentication credentials to the server. The username and password are separated by a single : and sent on the wire base64 encoded. The string is sent regardless of whether the server needs it (i.e., has sent an 401 authentication needed).
+-c concurrency
+Number of multiple requests to perform at a time. Default is one request at a time.
+-C cookie-name=value
+Add a Cookie: line to the request. The argument is typically in the form of a name=value pair. This field is repeatable.
+-d
+Do not display the "percentage served within XX [ms] table". (legacy support).
+-e csv-file
+Write a Comma separated value (CSV) file which contains for each percentage (from 1% to 100%) the time (in milliseconds) it took to serve that percentage of the requests. This is usually more useful than the 'gnuplot' file; as the results are already 'binned'.
+-g gnuplot-file
+Write all measured values out as a 'gnuplot' or TSV (Tab separate values) file. This file can easily be imported into packages like Gnuplot, IDL, Mathematica, Igor or even Excell. The labels are on the first line of the file.
+-h
+Display usage information.
+-H custom-header
+Append extra headers to the request. The argument is typically in the form of a valid header line, containing a colon-separated field-value pair (i.e., "Accept-Encoding: zip/zop;8bit").
+-i
+Do HEAD requests instead of GET.
+-k
+Enable the HTTP KeepAlive feature, i.e., perform multiple requests within one HTTP session. Default is no KeepAlive.
+-n requests
+Number of requests to perform for the benchmarking session. The default is to just perform a single request which usually leads to non-representative benchmarking results.
+-p POST-file
+File containing data to POST.
+-P proxy-auth-username:password
+Supply BASIC Authentication credentials to a proxy en-route. The username and password are separated by a single : and sent on the wire base64 encoded. The string is sent regardless of whether the proxy needs it (i.e., has sent an 407 proxy authentication needed).
+-q
+When processing more than 150 requests, ab outputs a progress count on stderr every 10% or 100 requests or so. The -q flag will suppress these messages.
+-s
+When compiled in (ab -h will show you) use the SSL protected https rather than the http protocol. This feature is experimental and very rudimentary. You probably do not want to use it.
+-S
+Do not display the median and standard deviation values, nor display the warning/error messages when the average and median are more than one or two times the standard deviation apart. And default to the min/avg/max values. (legacy support).
+-t timelimit
+Maximum number of seconds to spend for benchmarking. This implies a -n 50000 internally. Use this to benchmark the server within a fixed total amount of time. Per default there is no timelimit.
+-T content-type
+Content-type header to use for POST data.
+-v verbosity
+Set verbosity level - 4 and above prints information on headers, 3 and above prints response codes (404, 200, etc.), 2 and above prints warnings and info.
+-V
+Display version number and exit.
+-w
+Print out results in HTML tables. Default table is two columns wide, with a white background.
+-x table-attributes
+String to use as attributes for table. Attributes are inserted table here.
+-X proxy[:port]
+Use a proxy server for the requests.
+-y tr-attributes
+String to use as attributes for tr.
+-z td-attributes
+String to use as attributes for td. 
+              </Options>
+          </Name>
+      </Command>
+    </Category>
+    </help>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+  <Page ID="Intro Page">
+      <Title>
+        Welcome to Linux Man Pages
+      </Title>
+      <Section ID="Section1">
+        <Title>
+          How to use the Man Pages
+        </Title>
+        <BodyText>
+          Use the tree to the left to browse through the Man Page guide.
+        </BodyText>
+      </Section>
+  </Page>
